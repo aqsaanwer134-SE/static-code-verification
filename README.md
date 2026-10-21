@@ -13,8 +13,8 @@ Perform static verification of `game.cpp`: find defects without running the prog
 
 ## 3. Deliverables
 
-- [Table No. 1: Review Checklist](reports/table1_review_checklist.md)
-- [Table No. 2: Code Review Report](reports/table2_code_review_report.md)
+- [Table No. 1: Review Checklist](review_checklist.md)
+- [Table No. 2: Code Review Report](code_review_report.md)
 - [Original code: src/game.cpp](src/game.cpp)
 - [Fixed code: src/game_fixed.cpp](src/game_fixed.cpp)
 
