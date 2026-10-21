@@ -1,0 +1,25 @@
+# Code Review Report - `game.cpp`
+
+| Line number | Defect type | Why it is a problem | Proposed solution | Severity |
+|-------------|-------------|---------------------|-------------------|----------|
+| 27 | Uninitialized array | `monsters[]` pointers are not initialized in the constructor. Not a bug right now because of `monsterCount`, but it gets dangerous with the `<=` loop (L64). | Initialize with `Monster* monsters[MAX_MONSTERS] = {};`. | Low |
+| 17-22 | Class design | Constructor takes `std::string` by value and assigns in the body, which makes extra copies. Same for `spawnMonster` (L40). | Use `const std::string&` and an initializer list. | Low |
+| 41 | Array out of bounds | `spawnMonster` never checks `monsterCount` against `MAX_MONSTERS` (5). In `main` the 6th monster (Bat, L119) is written at `monsters[5]`, outside the array. This is undefined behavior. | Add `if (monsterCount >= MAX_MONSTERS) return;` before adding. | High |
+| 47 | Assignment in condition | `monsters[i]->id = id` assigns instead of comparing. It is always true for the first monster and also overwrites its id, so `findMonster` always returns the first monster. | Use `==`: `if (monsters[i]->id == id)`. | High |
+| 54-56 | Null pointer dereference | `findMonster` can return `nullptr`, but `m->health` is used directly. `attackMonster(99, 20)` in `main` (L123) has no monster with id 99, so it crashes. | Add `if (m == nullptr) return -1;` before using `m`. | High |
+| 55-56 | Signed/unsigned arithmetic | `dmg` is `unsigned int`, so `m->health - dmg` is also unsigned and can never be `< 0`. The check is always false. A negative damage also becomes a huge number. | Use `int` for `dmg`, reject negative damage, then check `m->health - damage < 0`. | High |
+| 64 | Loop off-by-one | `i <= monsterCount` reads `monsters[monsterCount]`, which is not a valid monster. Dereferencing it can crash. | Change to `i < monsterCount`. | High |
+| 70-73 | Returning reference to local variable | `label` is a local string and is destroyed when the function ends. The returned reference is dangling (used in `main` at L124). | Return by value: `std::string getMonsterLabel(int id)`. | High |
+| 71-72 | Null pointer dereference | `m` from `findMonster` is used without a null check. | Check `m == nullptr` and return an empty or "unknown" label. | Medium |
+| 77 | Uninitialized variable | `double sum;` has no starting value, so `sum +=` adds to garbage and the average is wrong. | Initialize: `double sum = 0;`. | High |
+| 80 | Division by zero / truncation | If `monsterCount` is 0, `sum / monsterCount` divides by zero. The `double` result is also returned as `int`, so decimals are lost. | Check `if (monsterCount == 0) return 0;` and return `double` if decimals are needed. | Medium |
+| 84-86 | Use after delete | `delete m;` runs first and then `m->name` is read. Memory is already freed. `m` is also not checked for null. | Print the name first, then delete. Add a null check. | High |
+| 85 | Dangling pointer / double delete | After `delete m`, the pointer is still in `monsters[]`, so the destructor (L37) deletes it again. Count and array are not updated. | Remove it from the array and do `monsterCount--`, or set the slot to `nullptr`. | High |
+| 91 | Integer division | `attack * armorPercent / 100` is done in integers, so decimals are cut off before converting to `double` (e.g. 7 * 25 / 100 gives 1, not 1.75). | Use `attack * armorPercent / 100.0`. | Low |
+| 94-99 | Missing return | If `score <= 100` no `return` runs, so the function returns garbage. `playerRank(50)` in `main` (L128) hits this case. | Add a final `else return 3;`. | High |
+| 102, 105 | Buffer overflow | `char[10]` with `cin >> name` has no length limit. A name with 10 or more characters writes past the buffer. | Use `std::string name;` with `std::cin >> name;`. | High |
+| 103 | Uninitialized variable | If the user enters a non-number, `cin` fails and `health` stays uninitialized, then it is passed to `spawnMonster` (L108). | Use `int health = 0;` and check `if (!(std::cin >> health))`. | Medium |
+| 108 | Unchecked function call | `readBoss` calls `spawnMonster` without checking if the array is already full, so the boss can be written out of bounds. | Fix the bounds check in `spawnMonster` and check its result. | Medium |
+| 109 | Wrong delete for array | Memory was allocated with `new char[10]` but released with `delete name`. Arrays need `delete[]`. | Use `delete[] name;` or avoid the raw array with `std::string`. | Medium |
+| 121 | Memory leak | `bonus` is created with `new` and never deleted, so memory is lost when `main` ends. | Use `delete bonus;` or a normal object: `Monster bonus(0, "Slime", 1, 0);`. | Medium |
+| 133 | Shallow copy / double delete | `Game copy = game;` uses the default copy constructor, which only copies pointers. Both objects delete the same monsters in their destructors. | Write a copy constructor and `operator=` with deep copy (rule of three), or disable copying with `= delete`. | High |
